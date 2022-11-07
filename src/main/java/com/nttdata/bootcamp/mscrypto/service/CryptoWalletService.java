@@ -17,7 +17,7 @@ public interface CryptoWalletService {
 
     Mono<Void> delete(Long id);
 
-    Mono<String> createWallet(CryptoWalletDTO cryptoWalletDTO);
+    Mono<String> createCryptoWallet(CryptoWalletDTO cryptoWalletDTO);
 
     Flux<CryptoWallet> findAllByClientId(Long id);
 

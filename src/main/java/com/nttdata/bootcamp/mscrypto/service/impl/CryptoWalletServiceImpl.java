@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 
 @Log4j2
 @Service
-public class CryptoCryptoWalletServiceImpl implements CryptoWalletService {
+public class CryptoWalletServiceImpl implements CryptoWalletService {
 
     @Autowired
     private CryptoWalletRepository cryptoWalletRepository;
@@ -30,25 +30,25 @@ public class CryptoCryptoWalletServiceImpl implements CryptoWalletService {
 
     @Override
     public Flux<CryptoWallet> findAll() {
-        log.info("Listing all wallets");
+        log.info("Listing all crypto wallets");
         return cryptoWalletRepository.findAll();
     }
 
     @Override
     public Mono<CryptoWallet> create(CryptoWallet cryptoWallet) {
-        log.info("Creating wallet: " + cryptoWallet.toString());
+        log.info("Creating crypto wallet: " + cryptoWallet.toString());
         return cryptoWalletRepository.save(cryptoWallet);
     }
 
     @Override
     public Mono<CryptoWallet> findById(Long id) {
-        log.info("Searching wallet by id: " + id);
+        log.info("Searching crypto wallet by id: " + id);
         return cryptoWalletRepository.findById(id);
     }
 
     @Override
     public Mono<CryptoWallet> update(Long id, CryptoWallet cryptoWallet) {
-        log.info("Updating wallet with id: " + id + " with : " + cryptoWallet.toString());
+        log.info("Updating crypto wallet with id: " + id + " with : " + cryptoWallet.toString());
         return cryptoWalletRepository.findById(id).flatMap(a -> {
             cryptoWallet.setId(id);
             return cryptoWalletRepository.save(cryptoWallet);
@@ -57,15 +57,15 @@ public class CryptoCryptoWalletServiceImpl implements CryptoWalletService {
 
     @Override
     public Mono<Void> delete(Long id) {
-        log.info("Deleting wallet with id: " + id);
+        log.info("Deleting crypto wallet with id: " + id);
         return cryptoWalletRepository.deleteById(id);
     }
 
     @Override
-    public Mono<String> createWallet(CryptoWalletDTO cryptoWalletDTO) {
-        log.info("Creating wallet: " + cryptoWalletDTO.toString());
+    public Mono<String> createCryptoWallet(CryptoWalletDTO cryptoWalletDTO) {
+        log.info("Creating crypto wallet: " + cryptoWalletDTO.toString());
         CryptoWallet cryptoWallet = cryptoWalletDTOMapper.convertToEntity(cryptoWalletDTO);
-        //Validar los datos del monedero
+        //Validar los datos del monedero crypto
         return checkFields(cryptoWallet)
                 //Validar que el cliente exista
                 .switchIfEmpty(clientService.findById(cryptoWallet.getClientId()).flatMap(c -> {
@@ -79,17 +79,17 @@ public class CryptoCryptoWalletServiceImpl implements CryptoWalletService {
 
     @Override
     public Flux<CryptoWallet> findAllByClientId(Long id) {
-        log.info("Listing all wallets by client id");
+        log.info("Listing all crypto wallets by client id");
         return cryptoWalletRepository.findAllByClientId(id);
     }
 
     @Override
     public Mono<String> checkFields(CryptoWallet cryptoWallet) {
-        if (cryptoWallet.getWalletNumber() == null || cryptoWallet.getWalletNumber().trim().equals("")) {
-            return Mono.error(new IllegalArgumentException("Wallet number cannot be empty"));
+        if (cryptoWallet.getCryptoWalletNumber() == null || cryptoWallet.getCryptoWalletNumber().trim().equals("")) {
+            return Mono.error(new IllegalArgumentException("Crypto wallet number cannot be empty"));
         }
         if (cryptoWallet.getBalance() == null || cryptoWallet.getBalance() < 0) {
-            return Mono.error(new IllegalArgumentException("New wallet balance must be equal or greater than 0"));
+            return Mono.error(new IllegalArgumentException("New crypto wallet balance must be equal or greater than 0"));
         }
         if (cryptoWallet.getPhoneNumber() == null || cryptoWallet.getPhoneNumber().trim().equals("")) {
             return Mono.error(new IllegalArgumentException("Phone number cannot be empty"));

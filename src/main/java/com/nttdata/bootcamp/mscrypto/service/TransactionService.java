@@ -20,13 +20,11 @@ public interface TransactionService {
 
     Mono<Void> delete(Long id);
 
-    Mono<String> buyBootcoin(TransactionDTO transactionDTO);
-
     Mono<String> sellBootcoin(TransactionDTO transactionDTO);
 
-    Flux<Transaction> findAllByWalletId(Long walletId);
+    Flux<Transaction> findAllByCryptoWalletId(Long walletId);
 
-    Flux<Transaction> findAllByWalletIdDesc(Long walletId);
+    Flux<Transaction> findAllByCryptoWalletIdDesc(Long walletId);
 
     Flux<Transaction> findTransactionsWalletMonth(Long walletId, LocalDateTime date);
 

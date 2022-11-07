@@ -25,13 +25,6 @@ public class TransactionController {
         return transactionService.findAll();
     }
 
-
-    @PostMapping(value = "/buyBootcoin")
-    @ResponseStatus(HttpStatus.CREATED)
-    public Mono<String> deposit(@RequestBody TransactionDTO transactionDTO) {
-        return transactionService.buyBootcoin(transactionDTO);
-    }
-
     @PostMapping(value = "/sellBootcoin")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<String> withdraw(@RequestBody TransactionDTO transactionDTO) {
@@ -64,10 +57,10 @@ public class TransactionController {
         return transactionService.delete(id);
     }
 
-    @GetMapping(value = "/findAllByWalletId/{id}")
+    @GetMapping(value = "/findAllByCryptoWalletId/{id}")
     @ResponseBody
-    public Flux<Transaction> findAllByWalletId(@PathVariable Long id) {
-        return transactionService.findAllByWalletId(id);
+    public Flux<Transaction> findAllByCryptoWalletId(@PathVariable Long id) {
+        return transactionService.findAllByCryptoWalletId(id);
     }
 
 }

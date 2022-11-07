@@ -5,10 +5,9 @@ import com.nttdata.bootcamp.mscrypto.infrastructure.TransactionRepository;
 import com.nttdata.bootcamp.mscrypto.mapper.TransactionDTOMapper;
 import com.nttdata.bootcamp.mscrypto.model.Transaction;
 import com.nttdata.bootcamp.mscrypto.model.CryptoWallet;
+import com.nttdata.bootcamp.mscrypto.model.enums.PaymentTypeEnum;
 import com.nttdata.bootcamp.mscrypto.model.enums.TransactionTypeEnum;
-import com.nttdata.bootcamp.mscrypto.service.DatabaseSequenceService;
-import com.nttdata.bootcamp.mscrypto.service.TransactionService;
-import com.nttdata.bootcamp.mscrypto.service.CryptoWalletService;
+import com.nttdata.bootcamp.mscrypto.service.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,6 +33,12 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Autowired
     private CryptoWalletService cryptoWalletService;
+
+    @Autowired
+    private AccountService accountService;
+
+    @Autowired
+    private BootcoinService bootcoinService;
 
     @Autowired
     private DatabaseSequenceService databaseSequenceService;
@@ -74,49 +79,80 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     /**
-     * This method transfers money from one wallet to another
+     * This method sells Bootcoin to another crypto wallet
      *
-     * @param transferDTO
+     * @param transactionDTO
      * @return
      */
     @Override
-    public Mono<String> sellBootcoin(TransferDTO transferDTO) {
-        log.info("Third Wallet transfer: " + transferDTO.toString() + " destination wallet: " + transferDTO.getDestinationWalletId());
-        Transaction transaction = transactionDTOMapper.convertToEntity(transferDTO, TransactionTypeEnum.TRANSFER);
+    public Mono<String> sellBootcoin(TransactionDTO transactionDTO) {
+        log.info("Selling bootcoin: " + transactionDTO.toString() + " destination wallet: " + transactionDTO.getDestinationCryptoWalletId());
+        Transaction transaction = transactionDTOMapper.convertToEntity(transactionDTO, TransactionTypeEnum.SELL);
         //Validar los datos de la transferencia
         return checkFields(transaction)
                 //Si los datos son correctos, validar que el monedero origen exista
-                .switchIfEmpty(cryptoWalletService.findById(transaction.getWalletId()).flatMap(originWallet -> {
+                .switchIfEmpty(cryptoWalletService.findById(transaction.getCryptoWalletId()).flatMap(originWallet -> {
                     //Si el monedero origen existe, verificar que el monedero origen tenga el saldo suficiente para realizar la transferencia
-                    return cryptoWalletService.findById(transaction.getDestinationWalletId()).flatMap(destinationWallet -> {
+                    return cryptoWalletService.findById(transaction.getDestinationCryptoWalletId()).flatMap(destinationWallet -> {
                         originWallet.setBalance(originWallet.getBalance() - transaction.getAmount());
                         if (originWallet.getBalance() < 0) {
-                            return Mono.error(new IllegalArgumentException("Insufficient balance to transfer"));
+                            return Mono.error(new IllegalArgumentException("Insufficient balance to sell"));
                         }
                         transaction.setNewBalance(originWallet.getBalance());
                         destinationWallet.setBalance(destinationWallet.getBalance() + transaction.getAmount());
                         //Crear una transacción en el monedero destino
                         Transaction destinationWalletTransaction = transactionDTOMapper.generateDestinationWalletTransaction(transaction);
                         destinationWalletTransaction.setNewBalance(destinationWallet.getBalance());
-                        //Actualizar monedero origen
-                        return cryptoWalletService.update(originWallet.getId(), originWallet)
-                                //Generar id de la transacción y registrar la transacción en el monedero origen
-                                .flatMap(oa -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
-                                    transaction.setId(id);
-                                    return transactionRepository.save(transaction);
-                                }))
-                                //Actualizar monedero destino
-                                .flatMap(ot -> cryptoWalletService.update(destinationWallet.getId(), destinationWallet))
-                                //Generar id de la transacción y registrar la transacción en el monedero destino
-                                .flatMap(da -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
-                                    destinationWalletTransaction.setId(id);
-                                    return transactionRepository.save(destinationWalletTransaction);
-                                }))
-                                .flatMap(dt -> Mono.just("Transfer to third wallet done, new balance: " + originWallet.getBalance()));
+                        //Calcular precio de bootcoin en ese momento
+                        return bootcoinService.getLastBootcoin().flatMap(b -> {
+                            transaction.setBootcoinId(b.getId());
+                            transaction.setAmountExchange(transaction.getAmount() * b.getPrice());
+                            switch (PaymentTypeEnum.valueOf(transaction.getPaymentType())) {
+                                case ACCOUNT:
+                                    //Verificar que la cuenta exista
+                                    return accountService.findById(originWallet.getAccountId()).flatMap(ac -> {
+                                        //Actualizar monedero origen
+                                        return cryptoWalletService.update(originWallet.getId(), originWallet)
+                                                //Generar id de la transacción y registrar la transacción en el monedero origen
+                                                .flatMap(oa -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
+                                                    transaction.setId(id);
+                                                    return transactionRepository.save(transaction);
+                                                }))
+                                                //Actualizar monedero destino
+                                                .flatMap(ot -> cryptoWalletService.update(destinationWallet.getId(), destinationWallet))
+                                                //Generar id de la transacción y registrar la transacción en el monedero destino
+                                                .flatMap(da -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
+                                                    destinationWalletTransaction.setId(id);
+                                                    return transactionRepository.save(destinationWalletTransaction);
+                                                }))
+                                                .flatMap(dt -> Mono.just("Bootcoin sold, new balance: " + originWallet.getBalance()));
+                                    });
+                                case WALLET:
+                                    //Verificar que exista el wallet
+                                    
+                                    //Actualizar monedero origen
+                                    return cryptoWalletService.update(originWallet.getId(), originWallet)
+                                            //Generar id de la transacción y registrar la transacción en el monedero origen
+                                            .flatMap(oa -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
+                                                transaction.setId(id);
+                                                return transactionRepository.save(transaction);
+                                            }))
+                                            //Actualizar monedero destino
+                                            .flatMap(ot -> cryptoWalletService.update(destinationWallet.getId(), destinationWallet))
+                                            //Generar id de la transacción y registrar la transacción en el monedero destino
+                                            .flatMap(da -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
+                                                destinationWalletTransaction.setId(id);
+                                                return transactionRepository.save(destinationWalletTransaction);
+                                            }))
+                                            .flatMap(dt -> Mono.just("Bootcoin sold, new balance: " + originWallet.getBalance()));
+                                default:
+                                    return Mono.error(new IllegalArgumentException("Payment type not valid!"));
+                            }
+                        });
                         //Si el monedero destino no existe, se cancela la transacción
-                    }).switchIfEmpty(Mono.error(new IllegalArgumentException("Destination wallet not found")));
+                    }).switchIfEmpty(Mono.error(new IllegalArgumentException("Destination crypto wallet not found")));
                     //Si el monedero origen no existe, se cancela la transacción
-                }).switchIfEmpty(Mono.error(new IllegalArgumentException("Origin Wallet not found"))));
+                }).switchIfEmpty(Mono.error(new IllegalArgumentException("Origin Crypto Wallet not found"))));
     }
 
     /**
@@ -126,9 +162,9 @@ public class TransactionServiceImpl implements TransactionService {
      * @return
      */
     @Override
-    public Flux<Transaction> findAllByWalletId(Long walletId) {
+    public Flux<Transaction> findAllByCryptoWalletId(Long walletId) {
         log.info("Listing all transactions by wallet id");
-        return transactionRepository.findAllByWalletId(walletId);
+        return transactionRepository.findAllByCryptoWalletId(walletId);
     }
 
     /**
@@ -138,9 +174,9 @@ public class TransactionServiceImpl implements TransactionService {
      * @return
      */
     @Override
-    public Flux<Transaction> findAllByWalletIdDesc(Long walletId) {
+    public Flux<Transaction> findAllByCryptoWalletIdDesc(Long walletId) {
         log.info("Listing all transactions by wallet id order by date desc");
-        return transactionRepository.findAllByWalletIdOrderByTransactionDateDesc(walletId);
+        return transactionRepository.findAllByCryptoWalletIdOrderByTransactionDateDesc(walletId);
     }
 
     /**
@@ -152,7 +188,7 @@ public class TransactionServiceImpl implements TransactionService {
      */
     @Override
     public Flux<Transaction> findTransactionsWalletMonth(Long walletId, LocalDateTime date) {
-        return transactionRepository.findAllByWalletIdAndTransactionDateBetween(walletId,
+        return transactionRepository.findAllByCryptoWalletIdAndTransactionDateBetween(walletId,
                 date.withDayOfMonth(1).with(LocalTime.MIN), date.with(TemporalAdjusters.lastDayOfMonth()).with(LocalTime.MAX));
     }
 
@@ -166,7 +202,7 @@ public class TransactionServiceImpl implements TransactionService {
      */
     @Override
     public Flux<Transaction> findTransactionsWalletPeriod(Long walletId, LocalDateTime start, LocalDateTime end) {
-        return transactionRepository.findAllByWalletIdAndTransactionDateBetween(walletId, start, end);
+        return transactionRepository.findAllByCryptoWalletIdAndTransactionDateBetween(walletId, start, end);
     }
 
     /**
@@ -215,7 +251,7 @@ public class TransactionServiceImpl implements TransactionService {
      */
     @Override
     public Mono<Transaction> findLastTransactionBefore(Long id, LocalDateTime date) {
-        return transactionRepository.findByWalletIdAndTransactionDateBeforeOrderByTransactionDateDesc(id, date)
+        return transactionRepository.findByCryptoWalletIdAndTransactionDateBeforeOrderByTransactionDateDesc(id, date)
                 .flatMap(t -> Mono.just(t))
                 //if it is empty take the wallet opening balance and creation date
                 .switchIfEmpty(cryptoWalletService.findById(id).flatMap(a -> {

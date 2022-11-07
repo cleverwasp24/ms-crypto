@@ -1,6 +1,7 @@
 package com.nttdata.bootcamp.mscrypto.model;
 
 import com.mongodb.lang.NonNull;
+import com.mongodb.lang.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -37,6 +38,10 @@ public class CryptoWallet {
     private String imeiNumber;
     @NonNull
     private String phoneNumber;
+    @Nullable
+    private Long accountId;
+    @Nullable
+    private Long walletId;
     @NonNull
     private LocalDateTime creationDate;
 

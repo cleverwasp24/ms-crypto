@@ -23,15 +23,21 @@ public class Transaction {
     @Id
     private Long id;
     @NonNull
-    private Long walletId;
+    private Long cryptoWalletId;
     @Nullable
-    private Long destinationWalletId;
+    private Long destinationCryptoWalletId;
     @NonNull
     private Integer transactionType;
+    @NonNull
+    private Integer paymentType;
     @NonNull
     private String description;
     @NonNull
     private Double amount;
+    @Nullable
+    private Double amountExchange;
+    @NonNull
+    private Long bootcoinId;
     @NonNull
     private Double newBalance;
     @NonNull

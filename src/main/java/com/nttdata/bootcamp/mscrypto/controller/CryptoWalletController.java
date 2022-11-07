@@ -38,8 +38,8 @@ public class CryptoWalletController {
 
     @PostMapping(value = "/createCryptoWallet")
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<String> createCryptoWallet(@RequestBody CryptoWalletDTO savingsCryptoWalletDTO) {
-        return cryptoWalletService.createWallet(savingsCryptoWalletDTO);
+    public Mono<String> createCryptoWallet(@RequestBody CryptoWalletDTO cryptoWalletDTO) {
+        return cryptoWalletService.createCryptoWallet(cryptoWalletDTO);
     }
 
     @GetMapping(value = "/find/{id}")
@@ -48,7 +48,7 @@ public class CryptoWalletController {
         return cryptoWalletService.findById(id)
                 .map(cryptoWallet -> ResponseEntity.ok().body(cryptoWallet))
                 .onErrorResume(e -> {
-                    log.info("Wallet not found " + id, e);
+                    log.info("Crypto Wallet not found " + id, e);
                     return Mono.just(ResponseEntity.badRequest().build());
                 })
                 .defaultIfEmpty(ResponseEntity.notFound().build());
@@ -64,7 +64,7 @@ public class CryptoWalletController {
 
     @DeleteMapping(value = "/delete/{id}")
     @ResponseBody
-    public Mono<Void> deleteByIdWallet(@PathVariable Long id) {
+    public Mono<Void> deleteByIdCryptoWallet(@PathVariable Long id) {
         return cryptoWalletService.delete(id);
     }
 
@@ -94,7 +94,7 @@ public class CryptoWalletController {
     @ResponseBody
     public Flux<Transaction> getLatestTenTransactions(@PathVariable Long id) {
         return cryptoWalletService.findById(id)
-                .flatMapMany(cryptoWallet -> transactionService.findAllByWalletIdDesc(cryptoWallet.getId()).take(10))
+                .flatMapMany(cryptoWallet -> transactionService.findAllByCryptoWalletIdDesc(cryptoWallet.getId()).take(10))
                 .switchIfEmpty(Mono.error(new Exception("CryptoWallet not found")));
     }
 

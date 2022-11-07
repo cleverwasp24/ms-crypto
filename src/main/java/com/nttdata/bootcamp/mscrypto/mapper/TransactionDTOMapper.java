@@ -1,7 +1,6 @@
 package com.nttdata.bootcamp.mscrypto.mapper;
 
 import com.nttdata.bootcamp.mscrypto.dto.TransactionDTO;
-import com.nttdata.bootcamp.mscrypto.dto.TransferDTO;
 import com.nttdata.bootcamp.mscrypto.model.Transaction;
 import com.nttdata.bootcamp.mscrypto.model.enums.TransactionTypeEnum;
 import org.modelmapper.ModelMapper;
@@ -14,22 +13,18 @@ public class TransactionDTOMapper {
     @Autowired
     private ModelMapper modelMapper = new ModelMapper();
 
-    public Object convertToDto(Transaction transaction, TransactionTypeEnum type) {
-        return switch (type) {
-            case DEPOSIT, WITHDRAW -> modelMapper.map(transaction, TransactionDTO.class);
-            case TRANSFER -> modelMapper.map(transaction, TransferDTO.class);
-        };
+    public TransactionDTO convertToDto(Transaction transaction, TransactionTypeEnum type) {
+        return modelMapper.map(transaction, TransactionDTO.class);
     }
 
-    public Transaction convertToEntity(Object transactionDTO, TransactionTypeEnum type) {
+    public Transaction convertToEntity(TransactionDTO transactionDTO, TransactionTypeEnum type) {
         Transaction transaction = modelMapper.map(transactionDTO, Transaction.class);
         transaction.setTransactionDate(LocalDateTime.now());
         transaction.setTransactionType(type.ordinal());
 
         switch (type) {
-            case DEPOSIT -> transaction.setDescription("WALLET DEPOSIT +$ " + transaction.getAmount());
-            case WITHDRAW -> transaction.setDescription("WALLET WITHDRAW -$ " + transaction.getAmount());
-            case TRANSFER -> transaction.setDescription("SEND WALLET TRANSFER -$ " + transaction.getAmount());
+            case BUY -> transaction.setDescription("CRYPTO BUY +$ " + transaction.getAmount());
+            case SELL -> transaction.setDescription("CRYPTO SELL -$ " + transaction.getAmount());
         }
 
         return transaction;
@@ -37,8 +32,17 @@ public class TransactionDTOMapper {
 
     public Transaction generateDestinationWalletTransaction(Transaction transaction) {
         Transaction destinationTransaction = modelMapper.map(transaction, Transaction.class);
-        destinationTransaction.setWalletId(transaction.getDestinationWalletId());
-        destinationTransaction.setDescription("RECEIVE WALLET TRANSFER +$ " + transaction.getAmount());
+        destinationTransaction.setCryptoWalletId(transaction.getDestinationCryptoWalletId());
+        switch (TransactionTypeEnum.valueOf(transaction.getTransactionType())) {
+            case BUY:
+                destinationTransaction.setTransactionType(TransactionTypeEnum.SELL.ordinal());
+                destinationTransaction.setDescription("CRYPTO SELL -$ " + transaction.getAmount());
+                break;
+            case SELL:
+                destinationTransaction.setTransactionType(TransactionTypeEnum.BUY.ordinal());
+                destinationTransaction.setDescription("CRYPTO BUY +$ " + transaction.getAmount());
+                break;
+        }
         return destinationTransaction;
     }
 }
