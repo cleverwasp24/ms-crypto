@@ -9,7 +9,5 @@ public interface AccountService {
 
     Mono<AccountDTO> findById(Long id);
     Flux<AccountDTO> findAllByClientId(Long id);
-    Mono<String> cardPurchase(AccountTransactionDTO transactionDTO);
-    Mono<String> cardDeposit(AccountTransactionDTO transactionDTO);
 
 }

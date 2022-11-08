@@ -111,25 +111,34 @@ public class TransactionServiceImpl implements TransactionService {
                                 case ACCOUNT:
                                     //Verificar que la cuenta exista
                                     return accountService.findById(originWallet.getAccountId()).flatMap(ac -> {
-                                        //Actualizar monedero origen
-                                        return cryptoWalletService.update(originWallet.getId(), originWallet)
-                                                //Generar id de la transacción y registrar la transacción en el monedero origen
-                                                .flatMap(oa -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
-                                                    transaction.setId(id);
-                                                    return transactionRepository.save(transaction);
-                                                }))
-                                                //Actualizar monedero destino
-                                                .flatMap(ot -> cryptoWalletService.update(destinationWallet.getId(), destinationWallet))
-                                                //Generar id de la transacción y registrar la transacción en el monedero destino
-                                                .flatMap(da -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
-                                                    destinationWalletTransaction.setId(id);
-                                                    return transactionRepository.save(destinationWalletTransaction);
-                                                }))
-                                                .flatMap(dt -> Mono.just("Bootcoin sold, new balance: " + originWallet.getBalance()));
+                                        //verificar que la cuenta de la cuenta destino tenga saldo suficiente
+                                        return accountService.findById(destinationWallet.getAccountId()).flatMap(da -> {
+                                            //Si la cuenta destino tiene saldo suficiente, realizar la transferencia
+                                            ac.setBalance(ac.getBalance() - transaction.getAmountExchange());
+                                            if (ac.getBalance() < 0) {
+                                                return Mono.error(new IllegalArgumentException("Insufficient balance in the buyer account"));
+                                            } else {
+                                                //Actualizar monedero origen
+                                                return cryptoWalletService.update(originWallet.getId(), originWallet)
+                                                        //Generar id de la transacción y registrar la transacción en el monedero origen
+                                                        .flatMap(oa -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
+                                                            transaction.setId(id);
+                                                            return transactionRepository.save(transaction);
+                                                        }))
+                                                        //Actualizar monedero destino
+                                                        .flatMap(ot -> cryptoWalletService.update(destinationWallet.getId(), destinationWallet))
+                                                        //Generar id de la transacción y registrar la transacción en el monedero destino
+                                                        .flatMap(dw -> databaseSequenceService.generateSequence(Transaction.SEQUENCE_NAME).flatMap(id -> {
+                                                            destinationWalletTransaction.setId(id);
+                                                            return transactionRepository.save(destinationWalletTransaction);
+                                                        }))
+                                                        .flatMap(dt -> Mono.just("Bootcoin sold, new balance: " + originWallet.getBalance()));
+                                            }
+                                        });
                                     });
                                 case WALLET:
                                     //Verificar que exista el wallet
-                                    
+
                                     //Actualizar monedero origen
                                     return cryptoWalletService.update(originWallet.getId(), originWallet)
                                             //Generar id de la transacción y registrar la transacción en el monedero origen

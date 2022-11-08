@@ -31,8 +31,11 @@ public class TransactionDTOMapper {
     }
 
     public Transaction generateDestinationWalletTransaction(Transaction transaction) {
-        Transaction destinationTransaction = modelMapper.map(transaction, Transaction.class);
+        Transaction destinationTransaction = new Transaction();
         destinationTransaction.setCryptoWalletId(transaction.getDestinationCryptoWalletId());
+        destinationTransaction.setDestinationCryptoWalletId(transaction.getDestinationCryptoWalletId());
+        destinationTransaction.setAmount(transaction.getAmount());
+        destinationTransaction.setAmountExchange(transaction.getAmountExchange());
         switch (TransactionTypeEnum.valueOf(transaction.getTransactionType())) {
             case BUY:
                 destinationTransaction.setTransactionType(TransactionTypeEnum.SELL.ordinal());
@@ -43,6 +46,7 @@ public class TransactionDTOMapper {
                 destinationTransaction.setDescription("CRYPTO BUY +$ " + transaction.getAmount());
                 break;
         }
+        destinationTransaction.setTransactionDate(LocalDateTime.now());
         return destinationTransaction;
     }
 }
