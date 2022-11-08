@@ -25,6 +25,8 @@ public class AccountServiceImpl implements AccountService {
         this.webClient = webClientBuilder.baseUrl("http://ms-gateway:8088").build();
     }
 
+    @CircuitBreaker(name = "service-account", fallbackMethod = "findByIdFallback")
+    @TimeLimiter(name = "service-account")
     @Override
     public Mono<AccountDTO> findById(Long id) {
         Mono<AccountDTO> accountList = this.webClient.get()
@@ -36,6 +38,8 @@ public class AccountServiceImpl implements AccountService {
         return accountList;
     }
 
+    @CircuitBreaker(name = "service-account", fallbackMethod = "findAllByIdFallback")
+    @TimeLimiter(name = "service-account")
     @Override
     public Flux<AccountDTO> findAllByClientId(Long id) {
         Flux<AccountDTO> accountList = this.webClient.get()
@@ -47,35 +51,12 @@ public class AccountServiceImpl implements AccountService {
         return accountList;
     }
 
-    @Override
-    public Mono<String> cardPurchase(AccountTransactionDTO transactionDTO) {
-        Mono<String> cardPurchase = this.webClient.post()
-                .uri("/bootcamp/transaction/cardPurchase")
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .body(Mono.just(transactionDTO), AccountTransactionDTO.class)
-                .exchangeToMono(cr -> cr.bodyToMono(String.class))
-                .onErrorMap(t -> new RuntimeException("Error in card purchase"));
-
-        log.info("Card purchase done from service ms-account:" + cardPurchase);
-        return cardPurchase;
+    public Mono<String> findByIdFallback(Long id, Throwable t) {
+        log.error("Fallback method for findById (ACCOUNT) executed {}", t.getMessage());
+        return Mono.empty();
     }
-
-    @CircuitBreaker(name = "service-account", fallbackMethod = "cardDepositFallback")
-    @TimeLimiter(name = "service-account")
-    @Override
-    public Mono<String> cardDeposit(AccountTransactionDTO transactionDTO) {
-        return this.webClient.post()
-                .uri("/bootcamp/transaction/cardDeposit")
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .body(Mono.just(transactionDTO), AccountTransactionDTO.class)
-                .retrieve()
-                .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new RuntimeException("Error " + clientResponse.statusCode())))
-                .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new RuntimeException("Error " + clientResponse.statusCode())))
-                .bodyToMono(String.class);
-    }
-
-    public Mono<String> cardDepositFallback(AccountTransactionDTO transactionDTO, Throwable t) {
-        log.error("Fallback method for cardDeposit (ACCOUNT) executed {}", t.getMessage());
+    public Mono<String> findAllByIdFallback(Long id, Throwable t) {
+        log.error("Fallback method for findAllById (ACCOUNT) executed {}", t.getMessage());
         return Mono.empty();
     }
 
